@@ -64,7 +64,8 @@ export default function BipartiteGraph({
     const psychNodes = nodes.filter(n => n.type === 'psych');
 
     const llmColors = ['#c084fc', '#60a5fa', '#4ade80', '#fb923c', '#f87171', '#67e8f9', '#a78bfa', '#fbbf24'];
-    const psychColors = ['#f87171', '#67e8f9', '#c084fc', '#fb923c', '#4ade80', '#60a5fa'];
+    // Psychology colors: Social-Clinical, Education, Language, Social Cognition, Neural Mechanisms, Psychometrics & JDM
+    const psychColors = ['#BD463D', '#D38341', '#DDB405', '#739B5F', '#6388B5', '#865FA9'];
 
     const g = svg.append('g');
 

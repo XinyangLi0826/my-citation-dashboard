@@ -29,6 +29,8 @@ Preferred communication style: Simple, everyday language.
 - **D3.js v7** for custom bipartite graph visualization showing LLM-to-Psychology citation networks
   - Node labels rendered in two lines using SVG tspan elements to prevent text overlap
   - Intelligent text splitting at word boundaries for optimal readability
+  - **Psychology color palette**: Social-Clinical (#BD463D red), Education (#D38341 orange), Language (#DDB405 yellow), Social Cognition (#739B5F green), Neural Mechanisms (#6388B5 blue), Psychometrics & JDM (#865FA9 purple)
+  - **LLM color palette**: 8 distinct colors for Multimodal Learning, Educational Application, Model Adaptation & Efficiency, etc.
 - **Recharts** for standard charts (line charts, bar charts)
   - Line chart dynamically matches selected LLM node color from BipartiteGraph
   - Enhanced line visualization with 3px stroke and 5px dots for clarity
@@ -37,6 +39,7 @@ Preferred communication style: Simple, everyday language.
 - **Color-coded visualization**: 
   - TheoryTable uses psychology cluster colors from BipartiteGraph with opacity-based intensity mapping (0.15-0.6) to represent citation counts - higher citations appear darker
   - CitationLineChart uses LLM cluster colors to match selected nodes in BipartiteGraph
+  - TheoryBarChart uses LLM cluster colors for bars to match BipartiteGraph nodes
 
 **State Management**
 - **TanStack Query (React Query)** for async state management and data fetching

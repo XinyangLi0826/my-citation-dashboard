@@ -19,7 +19,8 @@ export default function TheoryTable({ data, title, psychClusterId, onTheoryClick
   const minCitations = Math.min(...data.map(d => d.citations));
   
   // Psychology cluster colors matching BipartiteGraph
-  const psychColors = ['#f87171', '#67e8f9', '#c084fc', '#fb923c', '#4ade80', '#60a5fa'];
+  // Social-Clinical, Education, Language, Social Cognition, Neural Mechanisms, Psychometrics & JDM
+  const psychColors = ['#BD463D', '#D38341', '#DDB405', '#739B5F', '#6388B5', '#865FA9'];
   
   // Get cluster number from psychClusterId (e.g., "Psych-Cluster 0" -> 0)
   const getClusterNumber = (id: string | undefined): number => {
