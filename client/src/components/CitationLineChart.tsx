@@ -40,7 +40,8 @@ export default function CitationLineChart({ data, multiSeriesData, title, color 
       lastKnownValues[series.name] = 0;
     });
     
-    chartData = Array.from(allMonths).sort().map(month => {
+    // Sort months chronologically (YYYY-MM format)
+    chartData = Array.from(allMonths).sort((a, b) => a.localeCompare(b)).map(month => {
       const dataPoint: any = { month };
       multiSeriesData.forEach(series => {
         const point = series.data.find(d => d.month === month);

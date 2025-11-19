@@ -165,25 +165,40 @@ export function useVisualizationData() {
     const llmPaperIds = new Set(llmCluster.docs.map(d => d.paperId));
     const series: Array<{ psychTopic: string; psychCluster: number; data: CitationDataPoint[] }> = [];
 
-    // For each psychology cluster, generate a time series
+    // Create a Map for efficient paperId -> paper info lookup
+    // papersInfo is an array, so we need to create an index
+    const papersInfoMap = new Map();
+    const papersInfoArray = Array.isArray(papersInfo) ? papersInfo : Object.values(papersInfo || {});
+    papersInfoArray.forEach((p: any) => {
+      if (p && p.paperId) {
+        papersInfoMap.set(p.paperId, p);
+      }
+    });
+    
     Object.entries(psychClusters).forEach(([psychKey, psychCluster]) => {
       const psychPaperIds = new Set(psychCluster.docs.map(d => d.paperId));
       const monthCounts: Record<string, number> = {};
 
       // Count citations from this LLM cluster to this psych cluster by month
-      filteredPapers.forEach((paper: any) => {
-        if (llmPaperIds.has(paper.paperId) && paper.references && paper.publicationDate) {
-          const month = paper.publicationDate.substring(0, 7);
-          let monthCitations = 0;
-          
-          paper.references.forEach((ref: any) => {
-            if (psychPaperIds.has(ref.paperId)) {
-              monthCitations++;
-            }
-          });
+      // NOTE: filteredPapers has references, papersInfo has publicationDate - need to combine them
+      const papers = Array.isArray(filteredPapers) ? filteredPapers : Object.values(filteredPapers || {});
+      papers.forEach((paper: any) => {
+        if (llmPaperIds.has(paper.paperId)) {
+          // Get publication date from papersInfo using the Map
+          const paperInfo = papersInfoMap.get(paper.paperId);
+          if (paper.references && paperInfo && paperInfo.publicationDate) {
+            const month = paperInfo.publicationDate.substring(0, 7);
+            let monthCitations = 0;
+            
+            paper.references.forEach((ref: any) => {
+              if (psychPaperIds.has(ref.paperId)) {
+                monthCitations++;
+              }
+            });
 
-          if (monthCitations > 0) {
-            monthCounts[month] = (monthCounts[month] || 0) + monthCitations;
+            if (monthCitations > 0) {
+              monthCounts[month] = (monthCounts[month] || 0) + monthCitations;
+            }
           }
         }
       });
