@@ -63,7 +63,8 @@ export default function BipartiteGraph({
     const llmNodes = nodes.filter(n => n.type === 'llm');
     const psychNodes = nodes.filter(n => n.type === 'psych');
 
-    const llmColors = ['#c084fc', '#60a5fa', '#4ade80', '#fb923c', '#f87171', '#67e8f9', '#a78bfa', '#fbbf24'];
+    // All LLM nodes use unified gray color
+    const llmColor = '#9CA3AF'; // gray-400
     // Psychology colors: Social-Clinical, Education, Language, Social Cognition, Neural Mechanisms, Psychometrics & JDM
     const psychColors = ['#BD463D', '#D38341', '#DDB405', '#739B5F', '#6388B5', '#865FA9'];
 
@@ -113,8 +114,9 @@ export default function BipartiteGraph({
     edges.forEach(edge => {
       const sourceNode = nodes.find(n => n.id === edge.source)!;
       const targetNode = nodes.find(n => n.id === edge.target)!;
-      const sourceColor = sourceNode.type === 'llm' ? llmColors[sourceNode.cluster] : psychColors[sourceNode.cluster];
-      const targetColor = targetNode.type === 'llm' ? llmColors[targetNode.cluster] : psychColors[targetNode.cluster];
+      // Edge gradients: LLM side is gray, Psychology side uses cluster color
+      const sourceColor = sourceNode.type === 'llm' ? llmColor : psychColors[sourceNode.cluster];
+      const targetColor = targetNode.type === 'llm' ? llmColor : psychColors[targetNode.cluster];
       
       const gradientId = `gradient-${edge.source.replace(/\s+/g, '-')}-${edge.target.replace(/\s+/g, '-')}`;
       
@@ -183,12 +185,12 @@ export default function BipartiteGraph({
           onLLMNodeClick?.(node.id);
         });
 
-      // Visual circle
+      // Visual circle (all LLM nodes are gray)
       g.append('circle')
         .attr('cx', pos.x)
         .attr('cy', pos.y)
         .attr('r', nodeRadius)
-        .attr('fill', llmColors[node.cluster])
+        .attr('fill', llmColor)
         .attr('opacity', nodeOpacity)
         .attr('stroke', 'hsl(var(--background))')
         .attr('stroke-width', selectedLLMNode === node.id ? 4 : 2)
@@ -282,6 +284,27 @@ export default function BipartiteGraph({
       }
     });
 
+    // Add section labels
+    g.append('text')
+      .attr('x', width / 2)
+      .attr('y', llmY - 70)
+      .attr('text-anchor', 'middle')
+      .attr('fill', 'hsl(var(--foreground))')
+      .attr('font-size', '13px')
+      .attr('font-weight', '600')
+      .attr('letter-spacing', '0.05em')
+      .text('LLM TOPICS');
+
+    g.append('text')
+      .attr('x', width / 2)
+      .attr('y', psychY + 80)
+      .attr('text-anchor', 'middle')
+      .attr('fill', 'hsl(var(--foreground))')
+      .attr('font-size', '13px')
+      .attr('font-weight', '600')
+      .attr('letter-spacing', '0.05em')
+      .text('PSYCHOLOGY TOPICS');
+
   }, [nodes, edges, hoveredNode, selectedLLMNode, selectedPsychNode]);
 
   return (
@@ -299,6 +322,11 @@ export default function BipartiteGraph({
           {tooltip.content}
         </div>
       )}
+      <div className="absolute bottom-2 left-2 right-2 text-center text-xs text-muted-foreground bg-background/80 backdrop-blur rounded-md px-3 py-2 border border-border" data-testid="graph-hint">
+        <p>
+          <span className="font-medium">Tip:</span> Click <span className="font-semibold">LLM topics</span> (top) to update the line chart • Click <span className="font-semibold">Psychology topics</span> (bottom) to view theories
+        </p>
+      </div>
     </div>
   );
 }

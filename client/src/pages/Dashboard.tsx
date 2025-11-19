@@ -17,6 +17,7 @@ export default function Dashboard() {
     getBipartiteNodes,
     getBipartiteEdges,
     getCitationTimeSeries,
+    getMultiSeriesCitationData,
     getTheoryTableData,
     getTheoryDistribution,
     llmClusters,
@@ -37,9 +38,30 @@ export default function Dashboard() {
   const bipartiteNodes = getBipartiteNodes();
   const bipartiteEdges = getBipartiteEdges();
 
+  // Psychology colors for multi-series lines
+  const psychColors = ['#BD463D', '#D38341', '#DDB405', '#739B5F', '#6388B5', '#865FA9'];
+
   const getLineChartData = () => {
-    const llmKey = selectedLLMNode?.replace('LLM-', '');
-    return getCitationTimeSeries(llmKey || undefined);
+    if (!selectedLLMNode) {
+      // Overall view: single line
+      return getCitationTimeSeries();
+    }
+    // Not used in multi-series mode
+    return [];
+  };
+
+  const getMultiSeriesLineData = () => {
+    if (!selectedLLMNode) return undefined;
+    
+    const llmKey = selectedLLMNode.replace('LLM-', '');
+    const rawSeries = getMultiSeriesCitationData(llmKey);
+    
+    // Convert to SeriesData format with psychology colors
+    return rawSeries.map(series => ({
+      name: series.psychTopic,
+      color: psychColors[series.psychCluster] || psychColors[0],
+      data: series.data
+    }));
   };
 
   const getLineChartTitle = () => {
@@ -47,20 +69,30 @@ export default function Dashboard() {
       const llmKey = selectedLLMNode.replace('LLM-', '');
       if (llmClusters[llmKey]) {
         const label = getClusterLabel(llmKey, 'llm');
-        return `Citation Flow from ${label} to Psychology Papers`;
+        // Title will be rendered with italics in component
+        return `Citation Flow from ${label} to Psychology Topics`;
       }
     }
     return 'Overall Citation Flow from LLM Research to Psychology Papers';
   };
 
-  const getLineChartColor = () => {
+  const getLineChartTitleFormatted = () => {
     if (selectedLLMNode) {
-      // LLM colors matching BipartiteGraph
-      const llmColors = ['#c084fc', '#60a5fa', '#4ade80', '#fb923c', '#f87171', '#67e8f9', '#a78bfa', '#fbbf24'];
-      const clusterNum = selectedLLMNode.match(/Cluster (\d+)/)?.[1];
-      return llmColors[parseInt(clusterNum || '0')] || llmColors[0];
+      const llmKey = selectedLLMNode.replace('LLM-', '');
+      if (llmClusters[llmKey]) {
+        const label = getClusterLabel(llmKey, 'llm');
+        return (
+          <span>
+            Citation Flow from <em className="font-semibold not-italic">{label}</em> to Psychology Topics
+          </span>
+        );
+      }
     }
-    return '#60a5fa'; // Default blue
+    return <span>Overall Citation Flow from LLM Research to Psychology Papers</span>;
+  };
+
+  const handleResetLineChart = () => {
+    setSelectedLLMNode(null);
   };
 
   const psychKey = selectedPsychNode?.replace('Psych-', '');
@@ -141,11 +173,18 @@ export default function Dashboard() {
           </div>
 
           <div className="lg:col-span-5 bg-card border border-card-border rounded-lg p-6 min-h-[580px]">
-            <CitationLineChart
-              data={getLineChartData()}
-              title={getLineChartTitle()}
-              color={getLineChartColor()}
-            />
+            {selectedLLMNode ? (
+              <CitationLineChart
+                multiSeriesData={getMultiSeriesLineData()}
+                title={getLineChartTitle()}
+                onReset={handleResetLineChart}
+              />
+            ) : (
+              <CitationLineChart
+                data={getLineChartData()}
+                title={getLineChartTitle()}
+              />
+            )}
           </div>
         </div>
 

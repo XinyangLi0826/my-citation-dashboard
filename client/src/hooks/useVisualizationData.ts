@@ -155,6 +155,62 @@ export function useVisualizationData() {
     });
   };
 
+  // Generate multi-series citation data: 6 lines showing citations from one LLM topic to each psychology topic over time
+  const getMultiSeriesCitationData = (llmClusterId: string) => {
+    if (!filteredPapers || !papersInfo) return [];
+
+    const llmCluster = llmClusters[llmClusterId];
+    if (!llmCluster) return [];
+
+    const llmPaperIds = new Set(llmCluster.docs.map(d => d.paperId));
+    const series: Array<{ psychTopic: string; psychCluster: number; data: CitationDataPoint[] }> = [];
+
+    // For each psychology cluster, generate a time series
+    Object.entries(psychClusters).forEach(([psychKey, psychCluster]) => {
+      const psychPaperIds = new Set(psychCluster.docs.map(d => d.paperId));
+      const monthCounts: Record<string, number> = {};
+
+      // Count citations from this LLM cluster to this psych cluster by month
+      filteredPapers.forEach((paper: any) => {
+        if (llmPaperIds.has(paper.paperId) && paper.references && paper.publicationDate) {
+          const month = paper.publicationDate.substring(0, 7);
+          let monthCitations = 0;
+          
+          paper.references.forEach((ref: any) => {
+            if (psychPaperIds.has(ref.paperId)) {
+              monthCitations++;
+            }
+          });
+
+          if (monthCitations > 0) {
+            monthCounts[month] = (monthCounts[month] || 0) + monthCitations;
+          }
+        }
+      });
+
+      // Convert to cumulative time series
+      const sortedMonths = Object.keys(monthCounts).sort();
+      let cumulative = 0;
+      const data = sortedMonths.map(month => {
+        cumulative += monthCounts[month];
+        return {
+          month,
+          citations: cumulative
+        };
+      });
+
+      if (data.length > 0) {
+        series.push({
+          psychTopic: getClusterLabel(psychKey, 'psych'),
+          psychCluster: getClusterNumber(psychKey),
+          data
+        });
+      }
+    });
+
+    return series;
+  };
+
   // Get theory table data for a psychology cluster using secondary clustering
   const getTheoryTableData = (psychClusterId: string): TheoryRow[] => {
     const clusterNum = getClusterNumber(psychClusterId);
@@ -253,6 +309,7 @@ export function useVisualizationData() {
     getBipartiteNodes,
     getBipartiteEdges,
     getCitationTimeSeries,
+    getMultiSeriesCitationData,
     getTheoryTableData,
     getTheoryDistribution,
     llmClusters,

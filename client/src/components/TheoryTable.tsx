@@ -1,4 +1,12 @@
 import { Triangle } from 'lucide-react';
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 export interface TheoryRow {
   subtopic: string;
@@ -14,7 +22,10 @@ interface TheoryTableProps {
   onTheoryClick?: (theory: string) => void;
 }
 
+type SortMode = 'subtopic' | 'citations';
+
 export default function TheoryTable({ data, title, psychClusterId, onTheoryClick }: TheoryTableProps) {
+  const [sortMode, setSortMode] = useState<SortMode>('subtopic');
   const maxCitations = Math.max(...data.map(d => d.citations));
   const minCitations = Math.min(...data.map(d => d.citations));
   
@@ -54,12 +65,39 @@ export default function TheoryTable({ data, title, psychClusterId, onTheoryClick
     return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${opacity})`;
   };
 
+  // Sort data based on current mode
+  const sortedData = sortMode === 'citations' 
+    ? [...data].sort((a, b) => b.citations - a.citations)
+    : data; // data is already sorted by subtopic
+
+  // Track subtopic changes for separator rendering
+  let prevSubtopic: string | null = null;
+
   return (
-    <div className="w-full h-full flex flex-col" data-testid="theory-table">
-      <div className="mb-4">
-        <h3 className="text-xl font-medium text-foreground">{title}</h3>
-      </div>
-      <div className="flex-1 overflow-auto border border-border rounded-lg">
+    <TooltipProvider>
+      <div className="w-full h-full flex flex-col" data-testid="theory-table">
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-xl font-medium text-foreground">{title}</h3>
+          <div className="flex gap-2" data-testid="sort-toggle">
+            <Button
+              variant={sortMode === 'subtopic' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setSortMode('subtopic')}
+              data-testid="button-sort-subtopic"
+            >
+              By Subtopic
+            </Button>
+            <Button
+              variant={sortMode === 'citations' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setSortMode('citations')}
+              data-testid="button-sort-citations"
+            >
+              By Citations
+            </Button>
+          </div>
+        </div>
+        <div className="flex-1 overflow-auto border border-border rounded-lg">
         <table className="w-full">
           <thead className="sticky top-0 bg-card border-b-2 border-border z-10">
             <tr>
@@ -75,47 +113,68 @@ export default function TheoryTable({ data, title, psychClusterId, onTheoryClick
             </tr>
           </thead>
           <tbody>
-            {data.map((row, index) => {
+            {sortedData.map((row, index) => {
               const cellColor = getCellColor(row.citations);
-              return (
-                <tr
-                  key={index}
-                  className="border-b border-border transition-colors"
-                  data-testid={`theory-row-${index}`}
-                >
-                  <td className="px-4 py-3 text-sm text-foreground" data-testid={`theory-subtopic-${index}`}>
-                    {row.subtopic}
-                  </td>
-                  <td 
-                    className="px-4 py-3 text-sm text-foreground"
-                    style={{ backgroundColor: cellColor }}
-                    data-testid={`theory-name-${index}`}
-                  >
-                    <button
-                      onClick={() => row.isTopThree && onTheoryClick?.(row.theory)}
-                      className={`flex items-center gap-2 w-full ${row.isTopThree ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
-                      data-testid={row.isTopThree ? `top-theory-${index}` : undefined}
-                      disabled={!row.isTopThree}
-                    >
-                      {row.isTopThree && (
-                        <Triangle className="w-3 h-3 fill-foreground" />
-                      )}
-                      <span>{row.theory}</span>
-                    </button>
-                  </td>
-                  <td 
-                    className="px-4 py-3 text-sm text-right font-mono"
-                    style={{ backgroundColor: cellColor }}
-                    data-testid={`theory-citations-${index}`}
-                  >
-                    {row.citations}
+              const showSeparator = sortMode === 'subtopic' && prevSubtopic !== null && prevSubtopic !== row.subtopic;
+              const separator = showSeparator ? (
+                <tr key={`sep-${index}`}>
+                  <td colSpan={3} className="p-0">
+                    <div className="h-px bg-foreground"></div>
                   </td>
                 </tr>
+              ) : null;
+              prevSubtopic = row.subtopic;
+              
+              return (
+                <>
+                  {separator}
+                  <tr
+                    key={index}
+                    className="border-b border-border transition-colors"
+                    data-testid={`theory-row-${index}`}
+                  >
+                    <td className="px-4 py-3 text-sm text-foreground" data-testid={`theory-subtopic-${index}`}>
+                      {row.subtopic}
+                    </td>
+                    <td 
+                      className="px-4 py-3 text-sm text-foreground"
+                      style={{ backgroundColor: cellColor }}
+                      data-testid={`theory-name-${index}`}
+                    >
+                      <button
+                        onClick={() => row.isTopThree && onTheoryClick?.(row.theory)}
+                        className={`flex items-center gap-2 w-full ${row.isTopThree ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+                        data-testid={row.isTopThree ? `top-theory-${index}` : undefined}
+                        disabled={!row.isTopThree}
+                      >
+                        {row.isTopThree && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Triangle className="w-3 h-3 fill-foreground" data-testid={`triangle-${index}`} />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Click to view citation distribution across LLM topics</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                        <span>{row.theory}</span>
+                      </button>
+                    </td>
+                    <td 
+                      className="px-4 py-3 text-sm text-right font-mono"
+                      style={{ backgroundColor: cellColor }}
+                      data-testid={`theory-citations-${index}`}
+                    >
+                      {row.citations}
+                    </td>
+                  </tr>
+                </>
               );
             })}
           </tbody>
         </table>
       </div>
     </div>
+  </TooltipProvider>
   );
 }
