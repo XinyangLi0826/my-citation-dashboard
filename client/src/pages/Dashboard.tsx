@@ -83,7 +83,7 @@ export default function Dashboard() {
         const label = getClusterLabel(llmKey, 'llm');
         return (
           <span>
-            Citation Flow from <em className="font-semibold not-italic">{label}</em> to Psychology Topics
+            Citation Flow from <em className="font-semibold italic">{label}</em> to Psychology Topics
           </span>
         );
       }
@@ -176,13 +176,13 @@ export default function Dashboard() {
             {selectedLLMNode ? (
               <CitationLineChart
                 multiSeriesData={getMultiSeriesLineData()}
-                title={getLineChartTitle()}
+                title={getLineChartTitleFormatted()}
                 onReset={handleResetLineChart}
               />
             ) : (
               <CitationLineChart
                 data={getLineChartData()}
-                title={getLineChartTitle()}
+                title={getLineChartTitleFormatted()}
               />
             )}
           </div>
@@ -202,7 +202,7 @@ export default function Dashboard() {
             </div>
 
             {selectedTheory && (
-              <div className="lg:col-span-5 min-h-[520px]">
+              <div className="lg:col-span-5 bg-card border border-card-border rounded-lg p-6 min-h-[520px]">
                 <TheoryBarChart
                   data={theoryDistributionData}
                   title={getBarChartTitle()}

@@ -16,7 +16,7 @@ export interface SeriesData {
 interface CitationLineChartProps {
   data?: CitationDataPoint[];
   multiSeriesData?: SeriesData[];
-  title: string;
+  title: string | React.ReactNode;
   color?: string;
   onReset?: () => void;
 }

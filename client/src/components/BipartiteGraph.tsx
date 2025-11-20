@@ -114,9 +114,9 @@ export default function BipartiteGraph({
     edges.forEach(edge => {
       const sourceNode = nodes.find(n => n.id === edge.source)!;
       const targetNode = nodes.find(n => n.id === edge.target)!;
-      // Edge gradients: LLM side is gray, Psychology side uses cluster color
-      const sourceColor = sourceNode.type === 'llm' ? llmColor : psychColors[sourceNode.cluster];
-      const targetColor = targetNode.type === 'llm' ? llmColor : psychColors[targetNode.cluster];
+      // Edge color: use psychology cluster color (no gray)
+      const psychNode = sourceNode.type === 'psych' ? sourceNode : targetNode;
+      const edgeColor = psychColors[psychNode.cluster];
       
       const gradientId = `gradient-${edge.source.replace(/\s+/g, '-')}-${edge.target.replace(/\s+/g, '-')}`;
       
@@ -130,8 +130,8 @@ export default function BipartiteGraph({
         .attr('y2', getNodePos(edge.target).y)
         .selectAll('stop')
         .data([
-          { offset: '0%', color: sourceColor },
-          { offset: '100%', color: targetColor }
+          { offset: '0%', color: edgeColor },
+          { offset: '100%', color: edgeColor }
         ])
         .join('stop')
         .attr('offset', d => d.offset)

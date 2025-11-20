@@ -26,8 +26,8 @@ export default function TheoryBarChart({ data, title, colors }: TheoryBarChartPr
   const barColors = colors || defaultColors;
 
   return (
-    <div className="w-full h-full flex flex-col p-8 bg-card/30 rounded-xl" data-testid="theory-bar-chart">
-      <div className="mb-6">
+    <div className="w-full h-full flex flex-col" data-testid="theory-bar-chart">
+      <div className="mb-4">
         <h3 className="text-xl font-medium text-foreground">{title}</h3>
       </div>
       <div className="flex-1 min-h-0">
