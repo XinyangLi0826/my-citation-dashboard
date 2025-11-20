@@ -1,5 +1,5 @@
 import { Triangle } from 'lucide-react';
-import { Fragment, useState } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Tooltip,
@@ -97,6 +97,13 @@ export default function TheoryTable({ data, title, psychClusterId, onTheoryClick
             </Button>
           </div>
         </div>
+        
+        <div className="mb-3 text-xs text-muted-foreground bg-muted/30 rounded-md px-3 py-2 border border-border" data-testid="theory-table-hint">
+          <p>
+            <Triangle className="w-3 h-3 inline-block mr-1 fill-foreground" /> indicates top 3 cited theories. Click to view Citation Distribution bar chart
+          </p>
+        </div>
+
         <div className="flex-1 overflow-auto border border-border rounded-lg">
         <table className="w-full">
           <thead className="sticky top-0 bg-card border-b-2 border-border z-10">
@@ -113,27 +120,30 @@ export default function TheoryTable({ data, title, psychClusterId, onTheoryClick
             </tr>
           </thead>
           <tbody>
-            {sortedData.map((row, index) => {
+            {sortedData.flatMap((row, index) => {
               const cellColor = getCellColor(row.citations);
               const showSeparator = sortMode === 'subtopic' && prevSubtopic !== null && prevSubtopic !== row.subtopic;
-              const separator = showSeparator ? (
-                <tr key={`sep-${index}`}>
-                  <td colSpan={3} className="p-0">
-                    <div className="h-px bg-foreground"></div>
-                  </td>
-                </tr>
-              ) : null;
               prevSubtopic = row.subtopic;
               
               const rowKey = `row-${row.theory}-${index}`;
-              return (
-                <Fragment key={rowKey}>
-                  {separator}
-                  <tr
-                    key={rowKey}
-                    className="border-b border-border transition-colors"
-                    data-testid={`theory-row-${index}`}
-                  >
+              const elements = [];
+              
+              if (showSeparator) {
+                elements.push(
+                  <tr key={`sep-${index}`}>
+                    <td colSpan={3} className="p-0">
+                      <div className="h-px bg-foreground"></div>
+                    </td>
+                  </tr>
+                );
+              }
+              
+              elements.push(
+                <tr
+                  key={rowKey}
+                  className="border-b border-border transition-colors"
+                  data-testid={`theory-row-${index}`}
+                >
                     <td className="px-4 py-3 text-sm text-foreground" data-testid={`theory-subtopic-${index}`}>
                       {row.subtopic}
                     </td>
@@ -169,8 +179,9 @@ export default function TheoryTable({ data, title, psychClusterId, onTheoryClick
                       {row.citations}
                     </td>
                   </tr>
-                </Fragment>
               );
+              
+              return elements;
             })}
           </tbody>
         </table>

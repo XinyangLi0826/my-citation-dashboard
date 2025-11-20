@@ -109,7 +109,11 @@ export default function Dashboard() {
 
   const getBarChartTitle = () => {
     if (selectedTheory) {
-      return `Citation Distribution for ${selectedTheory} Across LLM Topics`;
+      return (
+        <>
+          Citation Distribution for <em className="font-semibold italic">{selectedTheory}</em> Across LLM Topics
+        </>
+      );
     }
     return 'Citation Distribution Across LLM Topics';
   };

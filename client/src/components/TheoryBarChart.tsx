@@ -7,7 +7,7 @@ export interface TheoryDistribution {
 
 interface TheoryBarChartProps {
   data: TheoryDistribution[];
-  title: string;
+  title: React.ReactNode;
   colors?: string[];
 }
 
