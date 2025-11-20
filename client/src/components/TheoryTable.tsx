@@ -1,5 +1,5 @@
 import { Triangle } from 'lucide-react';
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Tooltip,
@@ -125,11 +125,12 @@ export default function TheoryTable({ data, title, psychClusterId, onTheoryClick
               ) : null;
               prevSubtopic = row.subtopic;
               
+              const rowKey = `row-${row.theory}-${index}`;
               return (
-                <>
+                <Fragment key={rowKey}>
                   {separator}
                   <tr
-                    key={index}
+                    key={rowKey}
                     className="border-b border-border transition-colors"
                     data-testid={`theory-row-${index}`}
                   >
@@ -168,7 +169,7 @@ export default function TheoryTable({ data, title, psychClusterId, onTheoryClick
                       {row.citations}
                     </td>
                   </tr>
-                </>
+                </Fragment>
               );
             })}
           </tbody>
