@@ -322,9 +322,14 @@ export default function BipartiteGraph({
           {tooltip.content}
         </div>
       )}
-      <div className="absolute bottom-2 left-2 right-2 text-center text-xs text-muted-foreground bg-background/80 backdrop-blur rounded-md px-3 py-2 border border-border" data-testid="graph-hint">
+      <div className="absolute top-2 left-2 right-2 text-center text-xs text-muted-foreground bg-background/80 backdrop-blur rounded-md px-3 py-2 border border-border" data-testid="llm-hint">
         <p>
-          <span className="font-medium">Tip:</span> Click <span className="font-semibold">LLM topics</span> (top) to update the line chart • Click <span className="font-semibold">Psychology topics</span> (bottom) to view theories
+          <span className="font-medium">LLM Topics:</span> Click nodes to view citation flow to psychology research
+        </p>
+      </div>
+      <div className="absolute bottom-2 left-2 right-2 text-center text-xs text-muted-foreground bg-background/80 backdrop-blur rounded-md px-3 py-2 border border-border" data-testid="psych-hint">
+        <p>
+          <span className="font-medium">Psychology Topics:</span> Click nodes to explore theories and frameworks
         </p>
       </div>
     </div>
