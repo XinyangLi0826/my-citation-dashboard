@@ -119,25 +119,56 @@ export default function Dashboard() {
   };
 
   const getBarChartColors = () => {
-    // LLM colors matching BipartiteGraph - same array as line chart
-    const llmColors = ['#c084fc', '#60a5fa', '#4ade80', '#fb923c', '#f87171', '#67e8f9', '#a78bfa', '#fbbf24'];
+    // Get the selected psychology cluster number
+    const psychClusterNum = psychKey ? parseInt(psychKey.replace('Cluster ', '')) : 0;
     
-    // Map cluster labels to cluster numbers to get correct colors
-    const clusterLabelToNumber: { [key: string]: number } = {
-      'Multimodal Learning': 0,
-      'Educational Application': 1,
-      'Model Adaptation & Efficiency': 2,
-      'Bias, Morality & Culture': 3,
-      'Advanced Reasoning': 4,
-      'Domain Knowledge': 5,
-      'Language Ability': 6,
-      'Social Intelligence': 7
+    // Base psychology color for this cluster
+    const baseColor = psychColors[psychClusterNum] || psychColors[0];
+    
+    // Generate shades from dark to light based on number of bars
+    const numBars = theoryDistributionData.length;
+    
+    // Parse hex color to RGB
+    const hexToRgb = (hex: string) => {
+      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+      return result ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+      } : { r: 0, g: 0, b: 0 };
     };
     
-    // Create color array in the same order as theoryDistributionData
-    return theoryDistributionData.map(item => {
-      const clusterNum = clusterLabelToNumber[item.topic];
-      return llmColors[clusterNum] || llmColors[0];
+    // Convert RGB to HSL for easier lightness manipulation
+    const rgbToHsl = (r: number, g: number, b: number) => {
+      r /= 255; g /= 255; b /= 255;
+      const max = Math.max(r, g, b), min = Math.min(r, g, b);
+      let h = 0, s = 0;
+      const l = (max + min) / 2;
+      if (max !== min) {
+        const d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+        switch (max) {
+          case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+          case g: h = ((b - r) / d + 2) / 6; break;
+          case b: h = ((r - g) / d + 4) / 6; break;
+        }
+      }
+      return { h: h * 360, s: s * 100, l: l * 100 };
+    };
+    
+    const rgb = hexToRgb(baseColor);
+    const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+    
+    // Generate colors with varying lightness (darker bars first, lighter bars later)
+    // Range: from base lightness - 15% to base lightness + 25%
+    return theoryDistributionData.map((_, index) => {
+      // Calculate lightness: start darker, gradually get lighter
+      const lightnessRange = 40; // Total range of lightness variation
+      const minLightness = Math.max(25, hsl.l - 15);
+      const step = numBars > 1 ? lightnessRange / (numBars - 1) : 0;
+      const lightness = Math.min(75, minLightness + step * index);
+      
+      return `hsl(${hsl.h.toFixed(0)}, ${hsl.s.toFixed(0)}%, ${lightness.toFixed(0)}%)`;
     });
   };
 
