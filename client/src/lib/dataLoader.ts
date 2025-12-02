@@ -82,6 +82,21 @@ export async function loadSecondaryClusters(): Promise<SecondaryClusters> {
   return await response.json();
 }
 
+// Load refs info for title -> paperId mapping
+export async function loadRefsInfo(): Promise<any[]> {
+  const response = await fetch('/data/filtered_refs_5_info_1760396379773.json');
+  return await response.json();
+}
+
+// Normalize theory name for matching between secondary clusters and theory pool
+export function normalizeTheoryName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/theories$/i, 'theory')
+    .replace(/^mental\s+/i, '')
+    .trim();
+}
+
 // Parse cluster name to get cluster number
 export function getClusterNumber(clusterName: string): number {
   const match = clusterName.match(/Cluster (\d+)/);

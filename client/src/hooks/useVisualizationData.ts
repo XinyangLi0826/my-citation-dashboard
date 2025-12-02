@@ -6,8 +6,10 @@ import {
   loadFilteredPapersInfo,
   loadFilteredPapers,
   loadSecondaryClusters,
+  loadRefsInfo,
   getClusterNumber,
   getTopTheories,
+  normalizeTheoryName,
   type LLMCluster,
   type PsychCluster,
   type ClusterTheories,
@@ -27,17 +29,19 @@ export function useVisualizationData() {
   const [secondaryClusters, setSecondaryClusters] = useState<SecondaryClusters>({});
   const [papersInfo, setPapersInfo] = useState<any>(null);
   const [filteredPapers, setFilteredPapers] = useState<any>(null);
+  const [titleToPaperId, setTitleToPaperId] = useState<Map<string, string>>(new Map());
 
   useEffect(() => {
     async function loadData() {
       try {
-        const [llm, psych, theories, secondary, papers, filtPapers] = await Promise.all([
+        const [llm, psych, theories, secondary, papers, filtPapers, refsInfo] = await Promise.all([
           loadLLMClusters(),
           loadPsychClusters(),
           loadTheoryPool(),
           loadSecondaryClusters(),
           loadFilteredPapersInfo(),
-          loadFilteredPapers()
+          loadFilteredPapers(),
+          loadRefsInfo()
         ]);
 
         setLlmClusters(llm);
@@ -46,6 +50,16 @@ export function useVisualizationData() {
         setSecondaryClusters(secondary);
         setPapersInfo(papers);
         setFilteredPapers(filtPapers);
+        
+        // Build title -> paperId mapping from refsInfo
+        const titleMap = new Map<string, string>();
+        refsInfo.forEach((ref: any) => {
+          if (ref.title && ref.paperId) {
+            titleMap.set(ref.title.toLowerCase().trim(), ref.paperId);
+          }
+        });
+        setTitleToPaperId(titleMap);
+        
         setLoading(false);
       } catch (error) {
         console.error('Error loading data:', error);
@@ -238,6 +252,12 @@ export function useVisualizationData() {
     const rows: TheoryRow[] = [];
     const topTheories = getTopTheories(clusterTheories, 3);
     const topTheoryNames = new Set(topTheories.map(t => t.name));
+    
+    // Create normalized name -> canonical name mapping for theory pool
+    const normalizedToCanonical = new Map<string, string>();
+    Object.keys(clusterTheories).forEach(name => {
+      normalizedToCanonical.set(normalizeTheoryName(name), name);
+    });
 
     // Create a map to preserve subtopic order
     const subtopicOrder = new Map<string, number>();
@@ -249,13 +269,23 @@ export function useVisualizationData() {
     Object.entries(secondaryClusterData).forEach(([subClusterKey, subCluster]) => {
       // For each theory in this subtopic
       subCluster.theories.forEach(theoryName => {
-        const theoryData = clusterTheories[theoryName];
+        // Try direct match first, then normalized match
+        let theoryData = clusterTheories[theoryName];
+        let canonicalName = theoryName;
+        
+        if (!theoryData) {
+          // Try normalized matching
+          const normalizedName = normalizeTheoryName(theoryName);
+          canonicalName = normalizedToCanonical.get(normalizedName) || theoryName;
+          theoryData = clusterTheories[canonicalName];
+        }
+        
         if (theoryData) {
           rows.push({
             subtopic: subCluster.topic,
-            theory: theoryName,
+            theory: canonicalName,
             citations: theoryData.citation,
-            isTopThree: topTheoryNames.has(theoryName)
+            isTopThree: topTheoryNames.has(canonicalName)
           });
         }
       });
@@ -271,39 +301,43 @@ export function useVisualizationData() {
 
   // Get theory distribution across LLM clusters using real citation data
   const getTheoryDistribution = (theoryName: string): TheoryDistribution[] => {
-    if (!filteredPapers) return [];
+    if (!filteredPapers || titleToPaperId.size === 0) return [];
 
-    // Find the psychology cluster containing this theory
-    let psychClusterKey: string | null = null;
+    // Find the psychology cluster and theory data
+    let theoryData: { citation: number; docs: string[] } | null = null;
     for (const [clusterKey, theories] of Object.entries(theoryPool)) {
       if (theoryName in theories) {
-        psychClusterKey = clusterKey;
+        theoryData = theories[theoryName];
         break;
       }
     }
 
-    if (!psychClusterKey) return [];
+    if (!theoryData) return [];
 
-    const psychCluster = psychClusters[psychClusterKey];
-    if (!psychCluster) return [];
+    // Get paper IDs for this specific theory using title -> paperId mapping
+    const theoryPaperIds = new Set<string>();
+    theoryData.docs.forEach(docTitle => {
+      const normalizedTitle = docTitle.toLowerCase().trim();
+      const paperId = titleToPaperId.get(normalizedTitle);
+      if (paperId) {
+        theoryPaperIds.add(paperId);
+      }
+    });
 
-    // Get psychology paper IDs in this cluster
-    const psychPaperIds = new Set(psychCluster.docs.map(d => d.paperId));
-
-    // Count citations from each LLM cluster to psychology papers in this cluster
+    // Count citations from each LLM cluster to papers associated with this theory
     const distribution: TheoryDistribution[] = [];
 
     Object.entries(llmClusters).forEach(([llmKey, llmCluster]) => {
       // Get LLM paper IDs in this cluster
       const llmPaperIds = new Set(llmCluster.docs.map(d => d.paperId));
       
-      // Count how many times LLM papers cite psychology papers in this cluster
+      // Count how many times LLM papers cite the theory's papers
       let citationCount = 0;
       
       filteredPapers.forEach((paper: any) => {
         if (llmPaperIds.has(paper.paperId) && paper.references) {
           paper.references.forEach((ref: any) => {
-            if (psychPaperIds.has(ref.paperId)) {
+            if (theoryPaperIds.has(ref.paperId)) {
               citationCount++;
             }
           });
