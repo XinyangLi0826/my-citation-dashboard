@@ -161,7 +161,7 @@ export default function TheoryTable({ data, title, psychClusterId, onTheoryClick
                         {row.isTopThree && (
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <Triangle className="w-3 h-3 fill-foreground" data-testid={`triangle-${index}`} />
+                              <Triangle className="w-3 h-3 flex-shrink-0 fill-foreground" data-testid={`triangle-${index}`} />
                             </TooltipTrigger>
                             <TooltipContent>
                               <p>Click to view citation distribution across LLM topics</p>
