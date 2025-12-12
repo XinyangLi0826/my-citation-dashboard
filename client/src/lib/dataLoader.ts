@@ -1,4 +1,4 @@
-// Data loader utilities for JSON files
+// Data loader utilities - now fetching from API
 
 export interface LLMCluster {
   size: number;
@@ -46,45 +46,66 @@ export interface SecondaryClusters {
   };
 }
 
-// Load LLM clusters
+// Load LLM clusters from API
 export async function loadLLMClusters(): Promise<Record<string, LLMCluster>> {
-  const response = await fetch('/data/clustered_papers_5_1760396379764.json');
+  const response = await fetch('/api/llm-topics');
+  if (!response.ok) {
+    throw new Error('Failed to fetch LLM clusters');
+  }
   return await response.json();
 }
 
-// Load Psychology clusters
+// Load Psychology clusters from API
 export async function loadPsychClusters(): Promise<Record<string, PsychCluster>> {
-  const response = await fetch('/data/clustered_refs_5_1760396379772.json');
+  const response = await fetch('/api/psych-topics');
+  if (!response.ok) {
+    throw new Error('Failed to fetch psychology clusters');
+  }
   return await response.json();
 }
 
-// Load theory pool
+// Load theory pool from API
 export async function loadTheoryPool(): Promise<Record<string, ClusterTheories>> {
-  const response = await fetch('/data/psych_theory_pool_1760396379773.json');
+  const response = await fetch('/api/theory-pool');
+  if (!response.ok) {
+    throw new Error('Failed to fetch theory pool');
+  }
   return await response.json();
 }
 
-// Load filtered papers info (for time series)
+// Load filtered papers info from API (for time series)
 export async function loadFilteredPapersInfo(): Promise<any> {
-  const response = await fetch('/data/filtered_papers_5_info_1760396379772.json');
+  const response = await fetch('/api/papers-info');
+  if (!response.ok) {
+    throw new Error('Failed to fetch papers info');
+  }
   return await response.json();
 }
 
-// Load filtered papers with references (for citation relationships)
+// Load filtered papers with references from API (for citation relationships)
 export async function loadFilteredPapers(): Promise<any> {
-  const response = await fetch('/data/filtered_papers_5_1760396379773.json');
+  const response = await fetch('/api/filtered-papers');
+  if (!response.ok) {
+    throw new Error('Failed to fetch filtered papers');
+  }
   return await response.json();
 }
 
-// Load secondary clustering (for subtopics)
+// Load secondary clustering from API (for subtopics)
 export async function loadSecondaryClusters(): Promise<SecondaryClusters> {
-  const response = await fetch('/data/clustered_refs_4_secondary_1760396379765.json');
+  const response = await fetch('/api/secondary-clusters');
+  if (!response.ok) {
+    throw new Error('Failed to fetch secondary clusters');
+  }
   return await response.json();
 }
 
-// Load refs info for title -> paperId mapping
+// Load refs info from API for title -> paperId mapping
 export async function loadRefsInfo(): Promise<any[]> {
-  const response = await fetch('/data/filtered_refs_5_info_1760396379773.json');
+  const response = await fetch('/api/refs-info');
+  if (!response.ok) {
+    throw new Error('Failed to fetch refs info');
+  }
   return await response.json();
 }
 
