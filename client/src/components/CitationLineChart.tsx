@@ -21,10 +21,16 @@ interface CitationLineChartProps {
   onReset?: () => void;
 }
 
-export default function CitationLineChart({ data, multiSeriesData, title, color = 'hsl(var(--chart-1))', onReset }: CitationLineChartProps) {
+export default function CitationLineChart({
+  data,
+  multiSeriesData,
+  title,
+  color = 'hsl(var(--chart-1))',
+  onReset
+}: CitationLineChartProps) {
   // Use multi-series mode if provided, otherwise single-series mode
   const isMultiSeries = multiSeriesData && multiSeriesData.length > 0;
-  
+
   // Prepare chart data based on mode
   let chartData: any[] = [];
   if (isMultiSeries) {
@@ -33,30 +39,44 @@ export default function CitationLineChart({ data, multiSeriesData, title, color 
     multiSeriesData.forEach(series => {
       series.data.forEach(d => allMonths.add(d.month));
     });
-    
+
     // Track last known cumulative value for each series to carry forward
     const lastKnownValues: { [key: string]: number } = {};
     multiSeriesData.forEach(series => {
       lastKnownValues[series.name] = 0;
     });
-    
+
     // Sort months chronologically (YYYY-MM format)
-    chartData = Array.from(allMonths).sort((a, b) => a.localeCompare(b)).map(month => {
-      const dataPoint: any = { month };
-      multiSeriesData.forEach(series => {
-        const point = series.data.find(d => d.month === month);
-        if (point) {
-          // Found data for this month - update last known value
-          lastKnownValues[series.name] = point.citations;
-        }
-        // Use last known value (carries forward if no data this month)
-        dataPoint[series.name] = lastKnownValues[series.name];
+    chartData = Array.from(allMonths)
+      .sort((a, b) => a.localeCompare(b))
+      .map(month => {
+        const dataPoint: any = { month };
+        multiSeriesData.forEach(series => {
+          const point = series.data.find(d => d.month === month);
+          if (point) {
+            // Found data for this month - update last known value
+            lastKnownValues[series.name] = point.citations;
+          }
+          // Use last known value (carries forward if no data this month)
+          dataPoint[series.name] = lastKnownValues[series.name];
+        });
+        return dataPoint;
       });
-      return dataPoint;
-    });
   } else if (data) {
     chartData = data;
   }
+
+  // ✅ Debug log：放在这里（chartData 已经准备好，但还没 return）
+  console.log("[CitationLineChart]", {
+    isMultiSeries,
+    dataLen: data?.length,
+    multiSeriesLen: multiSeriesData?.length,
+    chartDataLen: chartData?.length,
+    sample: chartData?.[0],
+    sampleKeys: chartData?.[0] ? Object.keys(chartData[0]) : [],
+    sampleSeriesKeys: isMultiSeries ? multiSeriesData?.map(s => s.name) : null,
+  });
+
   return (
     <div className="w-full h-full flex flex-col" data-testid="citation-line-chart">
       <div className="mb-4 flex items-center justify-between">
@@ -74,17 +94,11 @@ export default function CitationLineChart({ data, multiSeriesData, title, color 
           </Button>
         )}
       </div>
+
       <div className="flex-1 min-h-0">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart
-            data={chartData}
-            margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
-          >
-            <CartesianGrid 
-              strokeDasharray="3 3" 
-              stroke="hsl(var(--border))" 
-              opacity={0.3}
-            />
+          <LineChart data={chartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
             <XAxis
               dataKey="month"
               stroke="hsl(var(--muted-foreground))"
@@ -97,9 +111,9 @@ export default function CitationLineChart({ data, multiSeriesData, title, color 
               fontSize={12}
               tickLine={false}
               axisLine={false}
-              label={{ 
-                value: 'Citation Count', 
-                angle: -90, 
+              label={{
+                value: 'Citation Count',
+                angle: -90,
                 position: 'insideLeft',
                 style: { fill: 'hsl(var(--muted-foreground))', fontSize: 12 }
               }}
@@ -113,15 +127,13 @@ export default function CitationLineChart({ data, multiSeriesData, title, color 
               }}
               labelStyle={{ color: 'hsl(var(--popover-foreground))' }}
             />
+
             {isMultiSeries && (
-              <Legend
-                wrapperStyle={{ fontSize: '12px' }}
-                iconType="line"
-              />
+              <Legend wrapperStyle={{ fontSize: '12px' }} iconType="line" />
             )}
+
             {isMultiSeries ? (
-              // Multi-series mode: render multiple lines
-              multiSeriesData.map((series, idx) => (
+              multiSeriesData!.map((series, idx) => (
                 <Line
                   key={series.name}
                   type="monotone"
@@ -137,7 +149,6 @@ export default function CitationLineChart({ data, multiSeriesData, title, color 
                 />
               ))
             ) : (
-              // Single-series mode: render one line
               <Line
                 type="monotone"
                 dataKey="citations"

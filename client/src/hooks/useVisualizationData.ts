@@ -21,6 +21,33 @@ import type { CitationDataPoint } from '@/components/CitationLineChart';
 import type { TheoryRow } from '@/components/TheoryTable';
 import type { TheoryDistribution } from '@/components/TheoryBarChart';
 
+
+function inferMonthFromArxivUrl(arxivUrl?: string | null): string | null {
+  if (!arxivUrl) return null;
+
+  const m = arxivUrl.match(/arxiv\.org\/abs\/(\d{4})\.\d{4,5}(v\d+)?/i);
+  if (!m) return null;
+
+  const yymm = m[1]; 
+  const yy = parseInt(yymm.slice(0, 2), 10);
+  const mm = parseInt(yymm.slice(2, 4), 10);
+  if (!Number.isFinite(yy) || !Number.isFinite(mm) || mm < 1 || mm > 12) return null;
+
+  const year = 2000 + yy;
+  const month = String(mm).padStart(2, '0');
+  return `${year}-${month}`;
+}
+
+function inferMonth(paper: any): string | null {
+  const pub = paper?.publicationDate;
+  if (typeof pub === 'string' && pub.length >= 7) return pub.substring(0, 7);
+
+  const inferred = inferMonthFromArxivUrl(paper?.arxivUrl);
+  if (inferred) return inferred;
+
+  return null;
+}
+
 export function useVisualizationData() {
   const [loading, setLoading] = useState(true);
   const [llmClusters, setLlmClusters] = useState<Record<string, LLMCluster>>({});
@@ -50,16 +77,16 @@ export function useVisualizationData() {
         setSecondaryClusters(secondary);
         setPapersInfo(papers);
         setFilteredPapers(filtPapers);
-        
+
         // Build title -> paperId mapping from refsInfo
         const titleMap = new Map<string, string>();
-        refsInfo.forEach((ref: any) => {
-          if (ref.title && ref.paperId) {
-            titleMap.set(ref.title.toLowerCase().trim(), ref.paperId);
+        (refsInfo || []).forEach((ref: any) => {
+          if (ref?.title && ref?.paperId) {
+            titleMap.set(String(ref.title).toLowerCase().trim(), String(ref.paperId));
           }
         });
         setTitleToPaperId(titleMap);
-        
+
         setLoading(false);
       } catch (error) {
         console.error('Error loading data:', error);
@@ -70,7 +97,6 @@ export function useVisualizationData() {
     loadData();
   }, []);
 
-  // Generate bipartite graph nodes with prefixes to avoid ID conflicts
   const getBipartiteNodes = (): BipartiteNode[] => {
     const llmNodes: BipartiteNode[] = Object.entries(llmClusters).map(([key, cluster]) => ({
       id: `LLM-${key}`,
@@ -91,37 +117,33 @@ export function useVisualizationData() {
     return [...llmNodes, ...psychNodes];
   };
 
-  // Generate bipartite graph edges based on real citation relationships
   const getBipartiteEdges = (): BipartiteEdge[] => {
     if (!filteredPapers) return [];
 
     const edges: BipartiteEdge[] = [];
-    
-    // Calculate edges based on actual citation relationships from filteredPapers
+    const papers = Array.isArray(filteredPapers) ? filteredPapers : Object.values(filteredPapers || {});
+
     Object.entries(llmClusters).forEach(([llmKey, llmCluster]) => {
       const llmPaperIds = new Set(llmCluster.docs.map(d => d.paperId));
 
       Object.entries(psychClusters).forEach(([psychKey, psychCluster]) => {
         const psychPaperIds = new Set(psychCluster.docs.map(d => d.paperId));
-        
+
         let citationCount = 0;
-        
-        // Count citations from LLM papers to psych papers
-        filteredPapers.forEach((paper: any) => {
+
+        papers.forEach((paper: any) => {
           if (llmPaperIds.has(paper.paperId) && paper.references) {
             paper.references.forEach((ref: any) => {
-              if (psychPaperIds.has(ref.paperId)) {
-                citationCount++;
-              }
+              if (psychPaperIds.has(ref.paperId)) citationCount++;
             });
           }
         });
 
         if (citationCount > 0) {
-          edges.push({ 
+          edges.push({
             source: `LLM-${llmKey}`,
             target: `Psych-${psychKey}`,
-            weight: citationCount 
+            weight: citationCount
           });
         }
       });
@@ -130,46 +152,41 @@ export function useVisualizationData() {
     return edges;
   };
 
-  // Generate citation time series data from real publication dates
+
   const getCitationTimeSeries = (llmClusterId?: string): CitationDataPoint[] => {
     if (!papersInfo) return [];
 
-    // Get papers for the selected cluster or all papers
+    const papersInfoArray = Array.isArray(papersInfo) ? papersInfo : Object.values(papersInfo || {});
+
     let paperIds: Set<string>;
     if (llmClusterId && llmClusters[llmClusterId]) {
       paperIds = new Set(llmClusters[llmClusterId].docs.map(d => d.paperId));
     } else {
-      // All LLM papers
-      paperIds = new Set(
-        Object.values(llmClusters).flatMap(c => c.docs.map(d => d.paperId))
-      );
+      paperIds = new Set(Object.values(llmClusters).flatMap(c => c.docs.map(d => d.paperId)));
     }
 
-    // Count papers by month
     const monthCounts: Record<string, number> = {};
-    
-    papersInfo.forEach((paper: any) => {
-      if (paperIds.has(paper.paperId) && paper.publicationDate) {
-        // Extract YYYY-MM from publication date
-        const month = paper.publicationDate.substring(0, 7);
-        monthCounts[month] = (monthCounts[month] || 0) + 1;
-      }
+
+    papersInfoArray.forEach((paper: any) => {
+      if (!paper?.paperId) return;
+      if (!paperIds.has(paper.paperId)) return;
+
+      const month = inferMonth(paper); // 👈 key fix
+      if (!month) return;
+
+      monthCounts[month] = (monthCounts[month] || 0) + 1;
     });
 
-    // Convert to sorted array with cumulative counts
     const sortedMonths = Object.keys(monthCounts).sort();
     let cumulative = 0;
-    
+
     return sortedMonths.map(month => {
       cumulative += monthCounts[month];
-      return {
-        month,
-        citations: cumulative
-      };
+      return { month, citations: cumulative };
     });
   };
 
-  // Generate multi-series citation data: 6 lines showing citations from one LLM topic to each psychology topic over time
+  // ✅ FIXED: multi-series also uses fallback month
   const getMultiSeriesCitationData = (llmClusterId: string) => {
     if (!filteredPapers || !papersInfo) return [];
 
@@ -179,53 +196,42 @@ export function useVisualizationData() {
     const llmPaperIds = new Set(llmCluster.docs.map(d => d.paperId));
     const series: Array<{ psychTopic: string; psychCluster: number; data: CitationDataPoint[] }> = [];
 
-    // Create a Map for efficient paperId -> paper info lookup
-    // papersInfo is an array, so we need to create an index
-    const papersInfoMap = new Map();
     const papersInfoArray = Array.isArray(papersInfo) ? papersInfo : Object.values(papersInfo || {});
+    const papersInfoMap = new Map<string, any>();
     papersInfoArray.forEach((p: any) => {
-      if (p && p.paperId) {
-        papersInfoMap.set(p.paperId, p);
-      }
+      if (p?.paperId) papersInfoMap.set(p.paperId, p);
     });
-    
+
+    const papers = Array.isArray(filteredPapers) ? filteredPapers : Object.values(filteredPapers || {});
+
     Object.entries(psychClusters).forEach(([psychKey, psychCluster]) => {
       const psychPaperIds = new Set(psychCluster.docs.map(d => d.paperId));
       const monthCounts: Record<string, number> = {};
 
-      // Count citations from this LLM cluster to this psych cluster by month
-      // NOTE: filteredPapers has references, papersInfo has publicationDate - need to combine them
-      const papers = Array.isArray(filteredPapers) ? filteredPapers : Object.values(filteredPapers || {});
       papers.forEach((paper: any) => {
-        if (llmPaperIds.has(paper.paperId)) {
-          // Get publication date from papersInfo using the Map
-          const paperInfo = papersInfoMap.get(paper.paperId);
-          if (paper.references && paperInfo && paperInfo.publicationDate) {
-            const month = paperInfo.publicationDate.substring(0, 7);
-            let monthCitations = 0;
-            
-            paper.references.forEach((ref: any) => {
-              if (psychPaperIds.has(ref.paperId)) {
-                monthCitations++;
-              }
-            });
+        if (!llmPaperIds.has(paper.paperId)) return;
 
-            if (monthCitations > 0) {
-              monthCounts[month] = (monthCounts[month] || 0) + monthCitations;
-            }
-          }
+        const paperInfo = papersInfoMap.get(paper.paperId);
+        const month = inferMonth(paperInfo); // 👈 key fix
+        if (!month) return;
+
+        if (!paper.references) return;
+
+        let monthCitations = 0;
+        paper.references.forEach((ref: any) => {
+          if (psychPaperIds.has(ref.paperId)) monthCitations++;
+        });
+
+        if (monthCitations > 0) {
+          monthCounts[month] = (monthCounts[month] || 0) + monthCitations;
         }
       });
 
-      // Convert to cumulative time series
       const sortedMonths = Object.keys(monthCounts).sort();
       let cumulative = 0;
       const data = sortedMonths.map(month => {
         cumulative += monthCounts[month];
-        return {
-          month,
-          citations: cumulative
-        };
+        return { month, citations: cumulative };
       });
 
       if (data.length > 0) {
@@ -240,7 +246,6 @@ export function useVisualizationData() {
     return series;
   };
 
-  // Get theory table data for a psychology cluster using secondary clustering
   const getTheoryTableData = (psychClusterId: string): TheoryRow[] => {
     const clusterNum = getClusterNumber(psychClusterId);
     const clusterKey = `Cluster ${clusterNum}`;
@@ -252,34 +257,29 @@ export function useVisualizationData() {
     const rows: TheoryRow[] = [];
     const topTheories = getTopTheories(clusterTheories, 3);
     const topTheoryNames = new Set(topTheories.map(t => t.name));
-    
-    // Create normalized name -> canonical name mapping for theory pool
+
     const normalizedToCanonical = new Map<string, string>();
     Object.keys(clusterTheories).forEach(name => {
       normalizedToCanonical.set(normalizeTheoryName(name), name);
     });
 
-    // Create a map to preserve subtopic order
     const subtopicOrder = new Map<string, number>();
-    Object.entries(secondaryClusterData).forEach(([subClusterKey, subCluster], index) => {
-      subtopicOrder.set(subCluster.topic, index);
+    Object.entries(secondaryClusterData).forEach(([_, subCluster], index) => {
+      subtopicOrder.set((subCluster as any).topic, index);
     });
 
-    // Iterate through secondary clusters (subtopics)
-    Object.entries(secondaryClusterData).forEach(([subClusterKey, subCluster]) => {
-      // For each theory in this subtopic
-      subCluster.theories.forEach(theoryName => {
-        // Try direct match first, then normalized match
+    Object.entries(secondaryClusterData).forEach(([_, subClusterAny]) => {
+      const subCluster = subClusterAny as any;
+      subCluster.theories.forEach((theoryName: string) => {
         let theoryData = clusterTheories[theoryName];
         let canonicalName = theoryName;
-        
+
         if (!theoryData) {
-          // Try normalized matching
           const normalizedName = normalizeTheoryName(theoryName);
           canonicalName = normalizedToCanonical.get(normalizedName) || theoryName;
           theoryData = clusterTheories[canonicalName];
         }
-        
+
         if (theoryData) {
           rows.push({
             subtopic: subCluster.topic,
@@ -291,7 +291,6 @@ export function useVisualizationData() {
       });
     });
 
-    // Sort by subtopic order first, then by citations within each subtopic (descending)
     return rows.sort((a, b) => {
       const subtopicDiff = (subtopicOrder.get(a.subtopic) || 0) - (subtopicOrder.get(b.subtopic) || 0);
       if (subtopicDiff !== 0) return subtopicDiff;
@@ -299,47 +298,36 @@ export function useVisualizationData() {
     });
   };
 
-  // Get theory distribution across LLM clusters using real citation data
   const getTheoryDistribution = (theoryName: string): TheoryDistribution[] => {
     if (!filteredPapers || titleToPaperId.size === 0) return [];
 
-    // Find the psychology cluster and theory data
     let theoryData: { citation: number; docs: string[] } | null = null;
-    for (const [clusterKey, theories] of Object.entries(theoryPool)) {
-      if (theoryName in theories) {
-        theoryData = theories[theoryName];
+    for (const theories of Object.values(theoryPool)) {
+      if (theoryName in (theories as any)) {
+        theoryData = (theories as any)[theoryName];
         break;
       }
     }
-
     if (!theoryData) return [];
 
-    // Get paper IDs for this specific theory using title -> paperId mapping
     const theoryPaperIds = new Set<string>();
     theoryData.docs.forEach(docTitle => {
-      const normalizedTitle = docTitle.toLowerCase().trim();
+      const normalizedTitle = String(docTitle).toLowerCase().trim();
       const paperId = titleToPaperId.get(normalizedTitle);
-      if (paperId) {
-        theoryPaperIds.add(paperId);
-      }
+      if (paperId) theoryPaperIds.add(paperId);
     });
 
-    // Count citations from each LLM cluster to papers associated with this theory
+    const papers = Array.isArray(filteredPapers) ? filteredPapers : Object.values(filteredPapers || {});
     const distribution: TheoryDistribution[] = [];
 
     Object.entries(llmClusters).forEach(([llmKey, llmCluster]) => {
-      // Get LLM paper IDs in this cluster
       const llmPaperIds = new Set(llmCluster.docs.map(d => d.paperId));
-      
-      // Count how many times LLM papers cite the theory's papers
       let citationCount = 0;
-      
-      filteredPapers.forEach((paper: any) => {
+
+      papers.forEach((paper: any) => {
         if (llmPaperIds.has(paper.paperId) && paper.references) {
           paper.references.forEach((ref: any) => {
-            if (theoryPaperIds.has(ref.paperId)) {
-              citationCount++;
-            }
+            if (theoryPaperIds.has(ref.paperId)) citationCount++;
           });
         }
       });

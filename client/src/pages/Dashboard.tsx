@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import BipartiteGraph from '@/components/BipartiteGraph';
 import CitationLineChart from '@/components/CitationLineChart';
 import TheoryTable from '@/components/TheoryTable';
@@ -24,6 +24,71 @@ export default function Dashboard() {
     psychClusters
   } = useVisualizationData();
 
+  // Psychology colors for multi-series lines
+  const psychColors = ['#BD463D', '#D38341', '#DDB405', '#739B5F', '#6388B5', '#865FA9'];
+
+  // ====== helpers (和你原来一样，只加了 fallback) ======
+  const getLineChartData = () => {
+    if (!selectedLLMNode) return getCitationTimeSeries() ?? [];
+    return [];
+  };
+
+  const getMultiSeriesLineData = () => {
+    if (!selectedLLMNode) return undefined;
+
+    // 例：selectedLLMNode = "LLM-Cluster 5"
+    const llmKey = selectedLLMNode.replace('LLM-', ''); // "Cluster 5"
+    const llmKeyNum = llmKey.replace('Cluster', '').trim(); // "5"
+
+    // 两种 key 都试，避免你现在 multi len = 0
+    const raw1 = getMultiSeriesCitationData(llmKey) ?? [];
+    const raw2 = getMultiSeriesCitationData(llmKeyNum) ?? [];
+    const rawSeries = raw1.length ? raw1 : raw2;
+
+    return rawSeries.map((series: any) => ({
+      name: series.psychTopic,
+      color: psychColors[series.psychCluster] || psychColors[0],
+      data: series.data
+    }));
+  };
+
+  const getLineChartTitleFormatted = () => {
+    if (selectedLLMNode) {
+      const llmKey = selectedLLMNode.replace('LLM-', '');
+      // 你原来有 llmClusters[llmKey] 判断，但它可能导致 title 不进来
+      // 你说“标题会变”，说明这里大概率 ok；我就不强制依赖 llmClusters 了
+      const label = getClusterLabel(llmKey, 'llm');
+      return (
+        <span>
+          Citation Flow from <em className="font-semibold italic">{label}</em> to Psychology Topics
+        </span>
+      );
+    }
+    return <span>Overall Citation Flow from LLM Research to Psychology Papers</span>;
+  };
+
+  const handleResetLineChart = () => setSelectedLLMNode(null);
+
+  // ✅ 正确的日志：放在 useEffect 里，不要写进 JSX
+  useEffect(() => {
+    if (loading) return;
+
+    const single = getLineChartData();
+    const multi = getMultiSeriesLineData();
+
+    console.log('[Dashboard RightTop] selectedLLMNode =', selectedLLMNode);
+    console.log('[Dashboard RightTop] single len =', single?.length, 'sample=', single?.[0]);
+    console.log('[Dashboard RightTop] multi len =', multi?.length, 'sample=', multi?.[0]);
+
+    if (multi?.length) {
+      console.log(
+        '[Dashboard RightTop] multi series lens =',
+        multi.map((s: any) => ({ name: s.name, len: s.data?.length, sample: s.data?.[0] }))
+      );
+    }
+  }, [loading, selectedLLMNode]); // 只依赖最关键的两个就够了
+
+  // ====== loading UI（注意：hooks 已经全部在上面执行了，所以不会白屏） ======
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -37,63 +102,6 @@ export default function Dashboard() {
 
   const bipartiteNodes = getBipartiteNodes();
   const bipartiteEdges = getBipartiteEdges();
-
-  // Psychology colors for multi-series lines
-  const psychColors = ['#BD463D', '#D38341', '#DDB405', '#739B5F', '#6388B5', '#865FA9'];
-
-  const getLineChartData = () => {
-    if (!selectedLLMNode) {
-      // Overall view: single line
-      return getCitationTimeSeries();
-    }
-    // Not used in multi-series mode
-    return [];
-  };
-
-  const getMultiSeriesLineData = () => {
-    if (!selectedLLMNode) return undefined;
-    
-    const llmKey = selectedLLMNode.replace('LLM-', '');
-    const rawSeries = getMultiSeriesCitationData(llmKey);
-    
-    // Convert to SeriesData format with psychology colors
-    return rawSeries.map(series => ({
-      name: series.psychTopic,
-      color: psychColors[series.psychCluster] || psychColors[0],
-      data: series.data
-    }));
-  };
-
-  const getLineChartTitle = () => {
-    if (selectedLLMNode) {
-      const llmKey = selectedLLMNode.replace('LLM-', '');
-      if (llmClusters[llmKey]) {
-        const label = getClusterLabel(llmKey, 'llm');
-        // Title will be rendered with italics in component
-        return `Citation Flow from ${label} to Psychology Topics`;
-      }
-    }
-    return 'Overall Citation Flow from LLM Research to Psychology Papers';
-  };
-
-  const getLineChartTitleFormatted = () => {
-    if (selectedLLMNode) {
-      const llmKey = selectedLLMNode.replace('LLM-', '');
-      if (llmClusters[llmKey]) {
-        const label = getClusterLabel(llmKey, 'llm');
-        return (
-          <span>
-            Citation Flow from <em className="font-semibold italic">{label}</em> to Psychology Topics
-          </span>
-        );
-      }
-    }
-    return <span>Overall Citation Flow from LLM Research to Psychology Papers</span>;
-  };
-
-  const handleResetLineChart = () => {
-    setSelectedLLMNode(null);
-  };
 
   const psychKey = selectedPsychNode?.replace('Psych-', '');
   const theoryTableData = psychKey ? getTheoryTableData(psychKey) : [];
@@ -119,26 +127,17 @@ export default function Dashboard() {
   };
 
   const getBarChartColors = () => {
-    // Get the selected psychology cluster number
     const psychClusterNum = psychKey ? parseInt(psychKey.replace('Cluster ', '')) : 0;
-    
-    // Base psychology color for this cluster
     const baseColor = psychColors[psychClusterNum] || psychColors[0];
-    
-    // Generate shades from dark to light based on number of bars
     const numBars = theoryDistributionData.length;
-    
-    // Parse hex color to RGB
+
     const hexToRgb = (hex: string) => {
       const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-      return result ? {
-        r: parseInt(result[1], 16),
-        g: parseInt(result[2], 16),
-        b: parseInt(result[3], 16)
-      } : { r: 0, g: 0, b: 0 };
+      return result
+        ? { r: parseInt(result[1], 16), g: parseInt(result[2], 16), b: parseInt(result[3], 16) }
+        : { r: 0, g: 0, b: 0 };
     };
-    
-    // Convert RGB to HSL for easier lightness manipulation
+
     const rgbToHsl = (r: number, g: number, b: number) => {
       r /= 255; g /= 255; b /= 255;
       const max = Math.max(r, g, b), min = Math.min(r, g, b);
@@ -155,19 +154,15 @@ export default function Dashboard() {
       }
       return { h: h * 360, s: s * 100, l: l * 100 };
     };
-    
+
     const rgb = hexToRgb(baseColor);
     const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
-    
-    // Generate colors with varying lightness (darker bars first, lighter bars later)
-    // Range: from base lightness - 15% to base lightness + 25%
+
     return theoryDistributionData.map((_, index) => {
-      // Calculate lightness: start darker, gradually get lighter
-      const lightnessRange = 40; // Total range of lightness variation
+      const lightnessRange = 40;
       const minLightness = Math.max(25, hsl.l - 15);
       const step = numBars > 1 ? lightnessRange / (numBars - 1) : 0;
       const lightness = Math.min(75, minLightness + step * index);
-      
       return `hsl(${hsl.h.toFixed(0)}, ${hsl.s.toFixed(0)}%, ${lightness.toFixed(0)}%)`;
     });
   };
@@ -197,9 +192,7 @@ export default function Dashboard() {
               edges={bipartiteEdges}
               selectedLLMNode={selectedLLMNode}
               selectedPsychNode={selectedPsychNode}
-              onLLMNodeClick={(id) => {
-                setSelectedLLMNode(selectedLLMNode === id ? null : id);
-              }}
+              onLLMNodeClick={(id) => setSelectedLLMNode(selectedLLMNode === id ? null : id)}
               onPsychNodeClick={(id) => {
                 setSelectedPsychNode(selectedPsychNode === id ? null : id);
                 setSelectedTheory(null);
@@ -230,9 +223,7 @@ export default function Dashboard() {
                 data={theoryTableData}
                 title={getPsychClusterTitle()}
                 psychClusterId={selectedPsychNode || undefined}
-                onTheoryClick={(theory) => {
-                  setSelectedTheory(selectedTheory === theory ? null : theory);
-                }}
+                onTheoryClick={(theory) => setSelectedTheory(selectedTheory === theory ? null : theory)}
               />
             </div>
 
