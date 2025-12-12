@@ -77,6 +77,15 @@ async function loadJsonFile<T>(filename: string): Promise<T> {
   return JSON.parse(content);
 }
 
+// Normalize theory name for matching between secondary clusters and theory pool
+function normalizeTheoryName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/theories$/i, 'theory')
+    .replace(/^mental\s+/i, '')
+    .trim();
+}
+
 async function migrateData() {
   console.log("Starting data migration...");
 
@@ -287,6 +296,17 @@ async function migrateData() {
 
     // 5. Insert Theory-Subtopic mappings from secondary clusters
     console.log("Inserting theory-subtopic mappings...");
+    
+    // Create normalized lookup map for theories within each cluster
+    const normalizedTheoryMap = new Map<string, number>();
+    for (const [key, id] of theoryIdMap.entries()) {
+      const [clusterKey, theoryName] = key.split('-', 2).length === 2 
+        ? [key.substring(0, key.indexOf('-')), key.substring(key.indexOf('-') + 1)]
+        : ['', key];
+      const normalizedKey = `${clusterKey}-${normalizeTheoryName(theoryName)}`;
+      normalizedTheoryMap.set(normalizedKey, id);
+    }
+    
     for (const [primaryClusterKey, subClusters] of Object.entries(
       secondaryClusters
     )) {
@@ -297,7 +317,13 @@ async function migrateData() {
         if (!subtopicId) continue;
 
         for (const theoryName of subCluster.theories) {
-          const theoryId = theoryIdMap.get(`${primaryClusterKey}-${theoryName}`);
+          // Try exact match first, then normalized match
+          let theoryId = theoryIdMap.get(`${primaryClusterKey}-${theoryName}`);
+          if (!theoryId) {
+            const normalizedKey = `${primaryClusterKey}-${normalizeTheoryName(theoryName)}`;
+            theoryId = normalizedTheoryMap.get(normalizedKey);
+          }
+          
           if (theoryId) {
             await db.insert(theorySubtopics).values({
               theoryId,
