@@ -104,6 +104,15 @@ async function migrateData() {
 
     console.log("JSON files loaded successfully");
 
+    // Clear dependent tables first (in order to make migration idempotent)
+    console.log("Clearing existing data for fresh import...");
+    await db.delete(citations);
+    await db.delete(theorySubtopics);
+    await db.delete(theoryDocuments);
+    await db.delete(theories);
+    await db.delete(subtopics);
+    console.log("Cleared dependent tables");
+
     // Create maps for lookups
     const psychPaperIdMap = new Map<string, number>();
     const llmPaperIdMap = new Map<string, number>();
@@ -116,6 +125,13 @@ async function migrateData() {
       refsInfoMap.set(ref.title.toLowerCase().trim(), ref);
     });
 
+    // Pre-populate paper ID maps from existing database records
+    const existingPsychPapers = await db.select().from(psychPapers);
+    existingPsychPapers.forEach((p) => psychPaperIdMap.set(p.paperId, p.id));
+    
+    const existingLlmPapers = await db.select().from(llmPapers);
+    existingLlmPapers.forEach((p) => llmPaperIdMap.set(p.paperId, p.id));
+
     // 1. Insert Psychology Topics
     console.log("Inserting psychology topics...");
     for (const [clusterKey, cluster] of Object.entries(psychClusters)) {
@@ -125,6 +141,10 @@ async function migrateData() {
           clusterKey,
           topic: cluster.topic,
           size: cluster.size,
+        })
+        .onConflictDoUpdate({
+          target: psychTopics.clusterKey,
+          set: { topic: cluster.topic, size: cluster.size },
         })
         .returning();
 
@@ -161,6 +181,10 @@ async function migrateData() {
           clusterKey,
           topic: cluster.topic,
           size: cluster.size,
+        })
+        .onConflictDoUpdate({
+          target: llmTopics.clusterKey,
+          set: { topic: cluster.topic, size: cluster.size },
         })
         .returning();
 
