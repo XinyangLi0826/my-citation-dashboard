@@ -100,7 +100,7 @@ export default function TheoryTable({ data, title, psychClusterId, onTheoryClick
         
         <div className="mb-3 text-xs text-muted-foreground bg-muted/30 rounded-md px-3 py-2 border border-border" data-testid="theory-table-hint">
           <p>
-            <Triangle className="w-3 h-3 inline-block mr-1 fill-foreground" /> indicates top 3 cited theories. Click to view Citation Distribution bar chart
+            <Triangle className="w-3 h-3 inline-block mr-1 fill-foreground" /> indicates top 3 cited theories. <strong>Click them</strong> to view Citation Distribution bar chart
           </p>
         </div>
 
