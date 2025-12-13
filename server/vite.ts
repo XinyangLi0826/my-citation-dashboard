@@ -7,7 +7,6 @@ import { type Server } from "http";
 import viteConfig from "../vite.config";
 import { nanoid } from "nanoid";
 
-// ✅ Node ESM: build-time safe __dirname replacement
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -70,8 +69,6 @@ export async function setupVite(app: Express, server: Server) {
 }
 
 export function serveStatic(app: Express) {
-  // ✅ production build outputs to dist/public
-  // dist/index.js runs in <project>/dist, so __dirname === <project>/dist
   const distPath = path.resolve(__dirname, "public");
 
   if (!fs.existsSync(distPath)) {
