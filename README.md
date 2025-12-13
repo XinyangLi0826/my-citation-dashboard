@@ -16,14 +16,54 @@ The dashboard supports analysis of cross domain knowledge flows through topic cl
 
 # Tech Stack
 
-Frontend  
-React TypeScript Vite Tailwind CSS Recharts D3
+Frontend
+React · Vite · TypeScript · Tailwind CSS · Recharts · D3.js · Wouter
 
-Backend  
-Node.js Express Drizzle ORM
+Backend
+Node.js (ESM) · Express · Drizzle ORM
 
-Database  
-PostgreSQL
+Database
+PostgreSQL · Neon (Serverless Postgres)
+
+Deployment
+Render · Neon
+
+# Live Demo
+
+🔗 Deployed on Render
+👉 https://my-citation-dashboard.onrender.com/
+
+Note: The service may take a few seconds to wake up if idle (Render free tier behavior).
+
+# Project Structure
+.
+├── client/                 # Frontend (React + Vite)
+│   └── src/
+├── server/                 # Express backend
+│   ├── routes.ts
+│   ├── db.ts
+│   ├── migrate-data.ts
+│   └── vite.ts
+├── shared/                 # Shared schema & types
+├── dist/                   # Production build output
+│   ├── index.js             # Bundled server
+│   └── public/              # Built frontend assets
+├── drizzle.config.ts
+├── package.json
+└── README.md
+
+# Environment Variables
+
+Create a .env file (for local development):
+
+DATABASE_URL=postgresql://<user>:<password>@<host>:<port>/<db>
+PORT=5000
+
+
+On Render, configure these in Environment → Environment Variables:
+
+DATABASE_URL (Neon connection string)
+PORT (Render provides this automatically, no need to set manually)
 
 # Local Development
 
@@ -48,6 +88,20 @@ npm run dev
 
 Visit:
 👉 http://localhost:5000
+
+# Interaction Guide
+
+Click an LLM node
+→ Right-top chart switches to multi-series citation trends.
+
+Click a Psychology node
+→ Bottom-left table shows subtopics & theories.
+
+Click a theory
+→ Bottom-right bar chart shows citation distribution across LLM topics.
+
+Reset
+→ Return to overall citation trends.
 
 # Author
 
